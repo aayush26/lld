@@ -21,3 +21,6 @@ Similar problems
 
 ## Keywords
 Module, OS API wrapper (facade pattern), reliability>scalability, 
+
+## Design Patterns
+<img width="497" height="392" alt="Screenshot 2026-01-31 at 2 20 19 AM" src="https://github.com/user-attachments/assets/3dfc8562-28c6-48af-ba68-906d21991af3" />
