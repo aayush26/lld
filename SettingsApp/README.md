@@ -1,6 +1,6 @@
 # Design the Windows Settings App
 
-## Problem Characteristis
+## Problem Characteristics
 > Policy-aware, observable, command-driven configuration management system
 
 Similar problems
