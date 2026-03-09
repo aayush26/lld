@@ -2,160 +2,224 @@
 
 ---
 
-# 1️⃣ Requirements
+# 1️⃣ Clarifying Requirements
+
+Start by restating the problem and asking clarifying questions.
+
+| Question | Why it Matters |
+|--------|---------------|
+| Who are the actors interacting with the system? | Identifies key entities |
+| What are the primary operations supported? | Defines APIs |
+| What constraints or limits exist? | Influences design decisions |
+| Is the system single-node or distributed? | Impacts concurrency and storage |
+| Expected scale (users, requests, data)? | Guides performance and scalability decisions |
+| Failure handling expectations? | Impacts reliability strategies |
+| Security or access control requirements? | Influences authorization design |
+
+If answers are not provided, **state reasonable assumptions before continuing**.
+
+**Assumptions:**
+- Actors: Users and applications interacting via API.
+- Primary operations: File/directory CRUD, navigation, search.
+- Constraints: Single-node system, in-memory for simplicity.
+- Scale: Millions of files, concurrent users.
+- Failure: Atomic operations, no distributed concerns.
+- Security: Basic permission model (read/write/execute).
+
+---
+
+# 2️⃣ Requirements
 
 ## Functional Requirements
 
-| Category     | Requirement |
-|--------------|------------|
-| Core Ops     | Create file |
-| Core Ops     | Create directory |
-| Core Ops     | Delete file |
-| Core Ops     | Delete directory |
-| Core Ops     | Move file / directory |
-| Core Ops     | Rename file / directory |
-| Navigation   | List directory contents |
-| Navigation   | Get full path |
-| Navigation   | Get parent directory |
-| File Ops     | Read file |
-| File Ops     | Write to file (overwrite) |
-| File Ops     | Append to file |
-| Metadata     | Get file size |
-| Metadata     | Get creation timestamp |
-| Metadata     | Get last modified timestamp |
-| Permissions  | Read / Write / Execute access control |
-| Search       | Find file by name (within directory) |
-| Search       | Recursive search |
+| Category | Requirement |
+|----------|------------|
+| Core | Create file |
+| Core | Create directory |
+| Core | Delete file |
+| Core | Delete directory |
+| Core | Move file / directory |
+| Core | Rename file / directory |
+| Navigation | List directory contents |
+| Navigation | Get full path |
+| Navigation | Get parent directory |
+| File Ops | Read file |
+| File Ops | Write to file (overwrite) |
+| File Ops | Append to file |
+| Metadata | Get file size |
+| Metadata | Get creation timestamp |
+| Metadata | Get last modified timestamp |
+| Permissions | Read / Write / Execute access control |
+| Search | Find file by name (within directory) |
+| Search | Recursive search |
 
 ---
 
 ## Non-Functional Requirements
 
-| Category     | Requirement |
-|--------------|------------|
-| Performance  | O(1) or O(log n) lookup inside a directory |
-| Scalability  | Support millions of files |
-| Concurrency  | Multiple users modifying structure safely |
-| Security     | Enforce permission validation before operations |
-| Reliability  | Atomic move/delete operations |
-| Extensibility| Easy addition of symbolic links, versioning, etc. |
+| Category | Requirement |
+|----------|------------|
+| Performance | O(1) or O(log n) lookup inside a directory |
+| Scalability | Support millions of files |
+| Concurrency | Multiple users modifying structure safely |
+| Security | Enforce permission validation before operations |
+| Reliability | Atomic move/delete operations |
+| Extensibility | Easy addition of symbolic links, versioning, etc. |
 
 ---
 
-# 2️⃣ Core Entities
+# 3️⃣ Core Entities
 
-| Entity            | Responsibility |
-|------------------|---------------|
-| FileSystem        | Entry point, manages root directory |
-| Node (abstract)   | Common abstraction for File & Directory |
-| File              | Stores content and file-specific behavior |
-| Directory         | Contains child nodes |
-| Metadata          | Stores size, timestamps, owner |
-| Permission        | Encapsulates access rights |
-| SearchService     | Handles recursive search logic |
+Identify the primary domain entities in the system.
 
----
+| Entity | Responsibility |
+|--------|---------------|
+| FileSystem | Entry point, manages root directory |
+| Node (abstract) | Common abstraction for File & Directory |
+| File | Stores content and file-specific behavior |
+| Directory | Contains child nodes |
+| Metadata | Stores size, timestamps, owner |
+| Permission | Encapsulates access rights |
+| SearchService | Handles recursive search logic |
 
-## Key Relationships
+Also describe key relationships:
 
-### Inheritance
-- `Node` → `File`
-- `Node` → `Directory`
+- **Inheritance**
+  - `Node` → `File`
+  - `Node` → `Directory`
 
-### Composition
-- `Directory` contains `Map<String, Node>` (children)
-- `Node` contains `Metadata`
-- `Node` contains `Permission`
+- **Composition**
+  - `Directory` contains `Map<String, Node>` (children)
+  - `Node` contains `Metadata`
+  - `Node` contains `Permission`
 
-### Aggregation
-- `FileSystem` contains root `Directory`
-
----
-
-# 3️⃣ Design Patterns – Must Have
-
-| Design Pattern | Used For | Example | Benefit |
-|----------------|----------|----------|----------|
-| Composite | Uniform treatment of File & Directory | `Node` abstraction | Treat leaf & composite uniformly |
-| Iterator | Directory traversal | `DirectoryIterator` | Clean traversal logic |
-| Factory | Node creation | `NodeFactory.create(type)` | Encapsulated object creation |
-| Strategy | Permission validation | `RoleBasedPermissionStrategy` | Flexible access policies |
+- **Aggregation**
+  - `FileSystem` contains root `Directory`
 
 ---
 
-# 4️⃣ Design Patterns – Good to Have
+# 4️⃣ Minimal Working LLD (Start Simple)
 
-| Design Pattern | Used For | Example | Benefit |
-|----------------|----------|----------|----------|
-| Observer | File change notification | Watch service | Decoupled event handling |
-| Command | File operations | `MoveCommand`, `DeleteCommand` | Enables undo/redo |
-| Decorator | Add compression / encryption | `EncryptedFile` | Extend behavior dynamically |
-| Flyweight | Shared metadata objects | Shared permission instances | Memory optimization |
+Design the **simplest working system first**.
 
----
+Focus on:
 
-# 5️⃣ Key Design Decisions
+- Core classes
+- Basic API interactions
+- Simplifying assumptions
 
-### 1. Composite Pattern
-Allows treating files and directories uniformly via `Node`.
+Goal: demonstrate a **functional baseline design**, then evolve it.
 
-### 2. Directory Children as Map
-Using `Map<String, Node>`:
-- O(1) lookup
-- Prevent duplicate names
+Example conceptual structure:
 
-### 3. Metadata Separation
-Encapsulates:
-- Size
-- Timestamps
-- Owner
+    FileSystem
+     ├── Directory (root)
+     ├── File
+     └── Directory (child)
 
-Keeps `Node` clean and extensible.
+Explain how a typical request flows through the system.
 
-### 4. Atomic Move Design
-Move must:
-- Validate no cycles
-- Check permissions
-- Lock source & destination
-- Update parent references atomically
+A typical create file request: FileSystem receives request, validates path, creates File node, adds to parent Directory's children map.
 
-### 5. Important Invariants
-- Root has no parent
-- No directory cycles allowed
-- Unique name per directory
-- Parent-child consistency always maintained
+Simplifying assumptions: No permissions, no concurrency, in-memory storage, no metadata beyond name.
 
 ---
 
-# 6️⃣ Concurrency Handling
+# 5️⃣ SOLID Principles Applied
 
-## What Can Go Wrong
-- Two threads creating same file
-- Move + delete conflict
-- Concurrent rename
-- Partial move leading to inconsistent tree
+Explain how the baseline design respects SOLID principles.
 
-## Locking Strategy
-- Resource-level locking (Directory level)
-- Lock parent directory for create/delete
-- Lock both source & destination for move
+| Principle | Application |
+|----------|-------------|
+| Single Responsibility | FileSystem manages root; Directory manages children; File manages content |
+| Open/Closed | Node abstraction allows adding new node types without changing existing code |
+| Liskov Substitution | File and Directory can be treated as Node uniformly |
+| Interface Segregation | No interfaces yet, but Node defines common methods |
+| Dependency Inversion | High-level modules (FileSystem) don't depend on low-level (File/Directory), but on abstraction (Node) |
 
-## Deadlock Prevention
-- Lock directories in consistent order (top-down path order)
-- Or use ordered lock acquisition by unique node ID
-
-## Atomic Operations
-Move:
-1. Lock source parent
-2. Lock destination parent
-3. Validate
-4. Remove from source
-5. Add to destination
-6. Release locks
+This ensures the system can **evolve safely**.
 
 ---
 
-# 7️⃣ Common Interview Extensions
+# 6️⃣ Identify Limitations of the Initial Design
+
+Analyze weaknesses in the minimal design.
+
+| Limitation | Impact |
+|-----------|--------|
+| No permissions | Security issues |
+| No concurrency control | Race conditions in multi-user scenarios |
+| No metadata | Cannot track size, timestamps |
+| Hardcoded in-memory | No persistence, limited scalability |
+| No search beyond basic | Inefficient for large directories |
+| Tight coupling | Difficult to extend with new features |
+
+This step demonstrates **critical design thinking**.
+
+---
+
+# 7️⃣ Incremental Design Improvements
+
+Improve the design step-by-step.
+
+For each improvement:
+
+| Problem | Improvement | Pattern Introduced | Tradeoff |
+|--------|-------------|--------------------|----------|
+| No permissions | Add Permission class and validation | Strategy (for permission checks) | Slight complexity increase |
+| No concurrency | Add locking mechanism | Resource-level locking | Performance overhead |
+| No metadata | Introduce Metadata class | Composition | Additional objects |
+| Hardcoded storage | Abstract storage layer | Factory (for storage types) | Indirection |
+| Basic search | Add SearchService with recursive logic | Iterator (for traversal) | More components |
+| Tight coupling | Use Composite pattern fully | Composite | Requires abstraction |
+
+Explain how each improvement **addresses a limitation** while introducing **tradeoffs**.
+
+---
+
+# 8️⃣ Final Design Overview
+
+Summarize the final evolved design.
+
+Include:
+
+- Main components: FileSystem, Node (File/Directory), Metadata, Permission, SearchService
+- Key abstractions: Node for uniform treatment
+- Interaction flow: Requests go through FileSystem, validated, operations on Nodes
+- Extensibility points: Add new Node types, storage backends, permission strategies
+
+---
+
+# 9️⃣ Key Design Decisions & Tradeoffs
+
+Explain major architectural choices.
+
+| Decision | Reason | Tradeoff |
+|---------|--------|----------|
+| Composite pattern for Node | Uniform file/directory handling | Slight abstraction overhead |
+| Map for directory children | O(1) lookup, prevent duplicates | Memory usage for large dirs |
+| Separate Metadata/Permission | Clean separation of concerns | More objects |
+| Atomic move with locking | Consistency | Concurrency performance |
+| Strategy for permissions | Flexible policies | Additional classes |
+
+---
+
+# 🔟 Concurrency Handling
+
+Explain how concurrent access is handled.
+
+Discuss:
+
+- Possible race conditions: Concurrent creates, moves, deletes
+- Locking strategy: Directory-level locks for operations
+- Deadlock prevention: Consistent lock order (by path)
+- Atomic operations: Lock source and dest for move
+
+---
+
+# 1️⃣1️⃣ Common Interview Extensions
+
+List realistic features interviewers may ask next.
 
 - Add symbolic links
 - Add soft delete (trash system)
@@ -169,17 +233,66 @@ Move:
 
 ---
 
-# 8️⃣ Where Interviewers Try to Push
+# 1️⃣2️⃣ Where Interviewers Push Deeper
 
-- How do you prevent cycles?
-- How to move atomically?
+List conceptual deep-dive questions.
+
+- How do you prevent cycles in moves?
+- How to handle millions of files efficiently?
 - What if directory has 1M children?
-- How to support millions of files?
-- How would you scale this horizontally?
+- How to scale horizontally?
 - How to design distributed file system?
 - How to handle permission inheritance?
-- How to handle concurrent writes?
-- What pattern alternative to Composite?
-- What are memory optimization techniques?
+- What alternatives to Composite pattern?
+- Memory optimization techniques?
 
 ---
+
+# 1️⃣3️⃣ Optional: Class Skeleton (Conceptual)
+
+Provide high-level interfaces and classes.
+
+    interface Node {
+        String getName();
+        String getPath();
+        Metadata getMetadata();
+        Permission getPermission();
+    }
+
+    class File implements Node {
+        private String content;
+        private Metadata metadata;
+        private Permission permission;
+
+        public void write(String data) { /* append or overwrite */ }
+        public String read() { return content; }
+    }
+
+    class Directory implements Node {
+        private Map<String, Node> children = new HashMap<>();
+        private Metadata metadata;
+        private Permission permission;
+
+        public void addChild(String name, Node node) { children.put(name, node); }
+        public Node getChild(String name) { return children.get(name); }
+        public List<Node> listChildren() { return new ArrayList<>(children.values()); }
+    }
+
+    class FileSystem {
+        private Directory root;
+
+        public FileSystem() {
+            this.root = new Directory();
+            root.addChild("/", root); // self-reference for root
+        }
+
+        public void createFile(String path) {
+            // Parse path, find parent directory, create File, add to parent
+        }
+
+        public void createDirectory(String path) {
+            // Similar to createFile but for Directory
+        }
+    }
+
+Avoid full implementation — focus on **structure and relationships**.
